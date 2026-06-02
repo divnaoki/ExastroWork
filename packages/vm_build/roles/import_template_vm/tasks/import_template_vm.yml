@@ -2,6 +2,8 @@
 # 種別: VMプロビジョニング（テンプレートインポート）
 # 対象: Hyper-Vホスト（WinRM接続）。1ホストに複数VMを VAR_vm で loop 構築。
 # 冪等性: Get-VM で同名VMの存在を確認し、無い場合のみ Import-VM（-Copy -GenerateNewId）→ Rename-VM。
+# モジュール: microsoft.hyperv に Import-VM 相当のモジュールが無いため win_shell で実装し、
+#            when ガード＋changed_when で冪等化する（hv_vm は新規作成用でテンプレートImport非対応）。
 # 前後取得: before=既存VM有無 / after=作成後VM存在。
 # 変数: VAR_vm（複数具体値変数）。メンバーは item.<member>。内部変数は VAR_ なし。
 

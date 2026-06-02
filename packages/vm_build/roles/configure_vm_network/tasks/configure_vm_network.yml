@@ -1,9 +1,9 @@
 ---
 # 種別: ハードウェア構成（仮想スイッチ接続・VLAN）
 # 対象: Hyper-Vホスト（WinRM）。VMは停止中に設定。
-# 冪等性: 現在のネットワークアダプタの SwitchName を取得し、要求値と異なる場合のみ Connect-VMNetworkAdapter。
-#         VLANは item.vlan_id が指定された場合のみ Set-VMNetworkAdapterVlan（現値比較）。
-# 変数: VAR_vm。item.switch_name / item.vlan_id。
+# モジュール: microsoft.hyperv.hv_network_adapter（冪等。switch_name / vlan_mode / vlan_id）。
+# 前後取得: before は read-only(win_shell)、after はモジュール登録結果(changed)で確認。
+# 変数: VAR_vm。item.switch_name / item.vlan_id（任意）。
 
 - name: 現在の接続先仮想スイッチを取得する（before）
   ansible.windows.win_shell: |
@@ -15,63 +15,24 @@
   register: net_before
   changed_when: false
 
-- name: 仮想スイッチに接続する（現値と異なる場合のみ）
-  ansible.windows.win_shell: |
-    $ErrorActionPreference = 'Stop'
-    Connect-VMNetworkAdapter -VMName '{{ item.name }}' -SwitchName '{{ item.switch_name }}'
-    'CHANGED'
-  when: (net_before.results[idx].stdout | trim) != item.switch_name
+- name: 仮想スイッチに接続する（VLAN指定含む・冪等モジュール hv_network_adapter）
+  microsoft.hyperv.hv_network_adapter:
+    vm_name: "{{ item.name }}"
+    state: present
+    switch_name: "{{ item.switch_name }}"
+    vlan_mode: "{{ 'Access' if (item.vlan_id is defined and (item.vlan_id | string | trim) | length > 0) else omit }}"
+    vlan_id: "{{ item.vlan_id if (item.vlan_id is defined and (item.vlan_id | string | trim) | length > 0) else omit }}"
   loop: "{{ VAR_vm }}"
   loop_control:
     label: "{{ item.name }}"
-    index_var: idx
-  changed_when: "'CHANGED' in stdout"
-
-- name: VLAN IDを設定する（vlan_id指定があり現値と異なる場合のみ）
-  ansible.windows.win_shell: |
-    $ErrorActionPreference = 'Stop'
-    $v = (Get-VMNetworkAdapterVlan -VMName '{{ item.name }}').AccessVlanId
-    if ($v -ne {{ item.vlan_id }}) {
-      Set-VMNetworkAdapterVlan -VMName '{{ item.name }}' -Access -VlanId {{ item.vlan_id }}
-      'CHANGED'
-    } else { 'UNCHANGED' }
-  when:
-    - item.vlan_id is defined
-    - (item.vlan_id | string | trim) | length > 0
-  loop: "{{ VAR_vm }}"
-  loop_control:
-    label: "{{ item.name }}"
-    index_var: idx
-  changed_when: "'CHANGED' in stdout"
-
-- name: 設定後の接続先仮想スイッチを取得する（after）
-  ansible.windows.win_shell: |
-    $a = Get-VMNetworkAdapter -VMName '{{ item.name }}' | Select-Object -First 1
-    if ($a.SwitchName) { $a.SwitchName } else { 'NONE' }
-  loop: "{{ VAR_vm }}"
-  loop_control:
-    label: "{{ item.name }}"
-  register: net_after
-  changed_when: false
-
-- name: 仮想スイッチへの接続を検証する
-  ansible.builtin.assert:
-    that:
-      - (net_after.results[idx].stdout | trim) == item.switch_name
-    fail_msg: "仮想スイッチ接続に失敗しました: {{ item.name }}"
-    success_msg: "接続先={{ item.switch_name }}: {{ item.name }}"
-    quiet: true
-  loop: "{{ VAR_vm }}"
-  loop_control:
-    label: "{{ item.name }}"
-    index_var: idx
+  register: net_result
 
 - name: ネットワーク設定の前後差分をエビデンス出力する
   ansible.builtin.debug:
     msg:
       - "vm     : {{ item.name }}"
       - "before : {{ net_before.results[idx].stdout | trim }}"
-      - "after  : {{ net_after.results[idx].stdout | trim }}"
+      - "after  : switch={{ item.switch_name }} vlan={{ item.vlan_id | default('-') }} (changed={{ net_result.results[idx].changed }})"
   loop: "{{ VAR_vm }}"
   loop_control:
     label: "{{ item.name }}"

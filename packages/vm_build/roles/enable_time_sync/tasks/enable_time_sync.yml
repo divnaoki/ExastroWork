@@ -3,6 +3,8 @@
 # 対象: Hyper-Vホスト（WinRM）。全VMで Time Synchronization 統合サービスを有効化し、
 #       Hyper-Vホストの時刻にゲストを同期させる。
 # 冪等性: Get-VMIntegrationService の Enabled を取得し、無効の場合のみ Enable-VMIntegrationService。
+# モジュール: microsoft.hyperv に統合サービス管理モジュールが無いため win_shell で実装し、
+#            when ガード＋changed_when で冪等化する。
 # 変数: VAR_vm（全VM対象）。
 
 - name: 現在の時刻同期統合サービス状態を取得する（before）
