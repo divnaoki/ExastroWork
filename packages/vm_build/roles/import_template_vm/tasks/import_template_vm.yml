@@ -4,22 +4,29 @@
 # 冪等性: Get-VM で同名VMの存在を確認し、無い場合のみ Import-VM（-Copy -GenerateNewId）→ Rename-VM。
 # モジュール: microsoft.hyperv に Import-VM 相当のモジュールが無いため win_shell で実装し、
 #            when ガード＋changed_when で冪等化する（hv_vm は新規作成用でテンプレートImport非対応）。
+# 入力: item.template_path はエクスポートVMの 'Virtual Machines' フォルダ（.vmcx の1つ上）。
+#       win_find で *.vmcx を検索し、そのフルパスを Import-VM に渡す。
 # 前後取得: before=既存VM有無 / after=作成後VM存在。
 # 変数: VAR_vm（複数具体値変数）。メンバーは item.<member>。内部変数は VAR_ なし。
 
-# --- 0. パス存在チェック（テンプレート .vmcx） ---
-- name: テンプレートパスの存在を確認する（要素ごと）
-  ansible.windows.win_stat:
-    path: "{{ item.template_path }}"
+# --- 0. テンプレート .vmcx の検索（template_path = 'Virtual Machines' フォルダ） ---
+- name: テンプレートの .vmcx を検索する（要素ごと）
+  ansible.windows.win_find:
+    paths: "{{ item.template_path }}"
+    patterns: ['*.vmcx']
+    file_type: file
+    recurse: false
+    get_checksum: false
   loop: "{{ VAR_vm }}"
   loop_control:
     label: "{{ item.name }}"
-  register: template_stat
+  register: template_find
+  changed_when: false
 
-- name: テンプレートパスが存在しない要素があれば異常終了する
+- name: .vmcx が見つからない要素があれば異常終了する
   ansible.builtin.fail:
-    msg: "テンプレートが存在しません: {{ item.template_path }} ({{ item.name }})"
-  when: not template_stat.results[idx].stat.exists
+    msg: ".vmcx が見つかりません: {{ item.template_path }} ({{ item.name }})"
+  when: template_find.results[idx].files | length == 0
   loop: "{{ VAR_vm }}"
   loop_control:
     label: "{{ item.name }}"
@@ -39,7 +46,7 @@
 - name: テンプレートをインポートしてVMを作成・リネームする（同名VMが無い場合のみ）
   ansible.windows.win_shell: |
     $ErrorActionPreference = 'Stop'
-    $imported = Import-VM -Path '{{ item.template_path }}' -Copy -GenerateNewId
+    $imported = Import-VM -Path '{{ template_find.results[idx].files[0].path }}' -Copy -GenerateNewId
     Rename-VM -VM $imported -NewName '{{ item.name }}'
     'CHANGED'
   when: "'ABSENT' in vm_before.results[idx].stdout"

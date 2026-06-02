@@ -17,7 +17,7 @@ Exastro ITA v2.x パラメータシート（メニュー）の手動登録ガイ
 |----|--------|----------------------|----|----|----|------|
 | 1 | VM名 | name | 文字列 | ● | | リネーム後のVM名 |
 | 2 | OS種別 | os_type | 文字列(rhel/windows) | ● | | 分岐制御 |
-| 3 | テンプレートパス | template_path | 文字列 | ● | | `.vmcx`の場所。OS種別で別 |
+| 3 | テンプレートパス | template_path | 文字列 | ● | | エクスポートVMの`Virtual Machines`フォルダ（.vmcxの1つ上）。配下の*.vmcxをwin_findで取得。OS種別で別 |
 | 4 | vCPU数 | cpu_count | 整数 | ● | | |
 | 5 | 起動メモリMB | memory_startup_mb | 整数 | ● | | |
 | 6 | 動的メモリ | memory_dynamic | 真偽(true/false) | ● | | |

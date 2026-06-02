@@ -5,7 +5,7 @@
 # 参考レコード構造（バンドルON・代入順序＝loop順）:
 #   - name: vm01                 # VAR_vm.name        作成するVM名
 #     os_type: windows           # VAR_vm.os_type     rhel / windows
-#     template_path: "D:\\Templates\\WS2022\\Virtual Machines\\xxxx.vmcx"  # VAR_vm.template_path
+#     template_path: "D:\\Templates\\WS2022\\Virtual Machines"  # VAR_vm.template_path（.vmcxの1つ上の'Virtual Machines'フォルダ。配下の*.vmcxをwin_findで取得）
 #     cpu_count: 4               # VAR_vm.cpu_count
 #     memory_startup_mb: 4096    # VAR_vm.memory_startup_mb
 #     memory_dynamic: false      # VAR_vm.memory_dynamic
