@@ -1,0 +1,15 @@
+---
+# configure_windows_ip ロール 既定値
+# Exastro由来の複数具体値変数 VAR_vm（実行時はパラメータシート「VM構築パラメータ」の値で上書き）。
+# 実行対象は Hyper-Vホスト（WinRM）。そこから PowerShell Direct でWindowsゲストを設定する。
+# 1レコード = 1VM。メンバー変数は item.<member> で参照。Windowsレコードのみが対象。
+# 参考レコード構造（バンドルON）:
+#   - name: win01
+#     os_type: windows
+#     guest_admin_user: "Administrator"
+#     guest_admin_password: "********"          # 機密・no_log
+#     guest_ip_address: "192.168.10.21"
+#     guest_subnet_prefix: 24
+#     guest_default_gateway: "192.168.10.1"
+#     guest_dns_servers: ["192.168.10.1"]
+VAR_vm: []

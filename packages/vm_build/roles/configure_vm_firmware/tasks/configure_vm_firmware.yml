@@ -1,0 +1,61 @@
+---
+# 種別: ハードウェア構成（Gen2 ファームウェア／セキュアブート）
+# 対象: Hyper-Vホスト（WinRM）。VMは停止中に設定。Generation 2 前提。
+# 冪等性: 現在のセキュアブート状態・テンプレートを取得し、要求と異なる場合のみ Set-VMFirmware。
+# 変数: VAR_vm。item.secure_boot（on / off / rhel）。
+#   - on   : セキュアブート有効（既定テンプレート）
+#   - off  : セキュアブート無効
+#   - rhel : セキュアブート有効＋SecureBootTemplate=MicrosoftUEFICertificateAuthority（RHEL等のLinux）
+
+- name: 現在のセキュアブート設定を取得する（before）
+  ansible.windows.win_shell: |
+    $f = Get-VMFirmware -VMName '{{ item.name }}'
+    "{0};{1}" -f $f.SecureBoot, $f.SecureBootTemplate
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: fw_before
+  changed_when: false
+
+- name: セキュアブートを設定する（要求と異なる場合のみ）
+  ansible.windows.win_shell: |
+    $ErrorActionPreference = 'Stop'
+    {% if item.secure_boot == 'off' %}
+    Set-VMFirmware -VMName '{{ item.name }}' -EnableSecureBoot Off
+    {% elif item.secure_boot == 'rhel' %}
+    Set-VMFirmware -VMName '{{ item.name }}' -EnableSecureBoot On -SecureBootTemplate 'MicrosoftUEFICertificateAuthority'
+    {% else %}
+    Set-VMFirmware -VMName '{{ item.name }}' -EnableSecureBoot On
+    {% endif %}
+    'CHANGED'
+  when: >-
+    ('{{ item.secure_boot }}' == 'off' and (fw_before.results[idx].stdout | trim).split(';')[0] != 'Off')
+    or ('{{ item.secure_boot }}' == 'rhel' and ((fw_before.results[idx].stdout | trim).split(';')[0] != 'On' or (fw_before.results[idx].stdout | trim).split(';')[1] != 'MicrosoftUEFICertificateAuthority'))
+    or ('{{ item.secure_boot }}' == 'on' and (fw_before.results[idx].stdout | trim).split(';')[0] != 'On')
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+  changed_when: "'CHANGED' in stdout"
+
+- name: 設定後のセキュアブート設定を取得する（after）
+  ansible.windows.win_shell: |
+    $f = Get-VMFirmware -VMName '{{ item.name }}'
+    "{0};{1}" -f $f.SecureBoot, $f.SecureBootTemplate
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: fw_after
+  changed_when: false
+
+- name: ファームウェア設定の前後差分をエビデンス出力する
+  ansible.builtin.debug:
+    msg:
+      - "vm           : {{ item.name }}"
+      - "secure_boot  : {{ item.secure_boot }}"
+      - "before       : {{ fw_before.results[idx].stdout | trim }}"
+      - "after        : {{ fw_after.results[idx].stdout | trim }}"
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx

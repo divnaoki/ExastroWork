@@ -1,0 +1,3 @@
+---
+- name: 時刻同期（統合サービス）有効化タスクを読み込む
+  ansible.builtin.include_tasks: enable_time_sync.yml

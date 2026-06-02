@@ -1,0 +1,98 @@
+---
+# 種別: OS設定（Windowsゲストの静的IP投入）
+# 対象: Hyper-Vホスト（WinRM）から PowerShell Direct（Invoke-Command -VMName）でゲスト内を操作。
+#       ネットワーク未確立のゲストに対し、ホスト経由で直接コマンド実行できる。
+# 条件: Windowsゲストのみ（when: item.os_type == 'windows'）。RHELはkickstartでIP割当済みのため対象外。
+# 冪等性: ゲスト内の現IPを取得し、要求値と異なる場合のみ New-NetIPAddress を適用。
+# 機密: ゲスト管理者パスワードを扱うため no_log: true。
+# 変数: VAR_vm。item.guest_admin_user / guest_admin_password / guest_ip_address /
+#       guest_subnet_prefix / guest_default_gateway / guest_dns_servers。
+
+- name: ゲスト内の現在のIPアドレスを取得する（before・Windowsのみ）
+  ansible.windows.win_shell: |
+    $sec = ConvertTo-SecureString '{{ item.guest_admin_password }}' -AsPlainText -Force
+    $cred = New-Object System.Management.Automation.PSCredential('{{ item.guest_admin_user }}', $sec)
+    Invoke-Command -VMName '{{ item.name }}' -Credential $cred -ScriptBlock {
+      $ip = Get-NetIPAddress -AddressFamily IPv4 |
+        Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } |
+        Select-Object -First 1 -ExpandProperty IPAddress
+      if ($ip) { $ip } else { 'NONE' }
+    }
+  when: item.os_type == 'windows'
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+  register: ip_before
+  no_log: true
+  changed_when: false
+
+- name: 静的IPアドレスを設定する（現値と異なる場合のみ・Windowsのみ）
+  ansible.windows.win_shell: |
+    $ErrorActionPreference = 'Stop'
+    $sec = ConvertTo-SecureString '{{ item.guest_admin_password }}' -AsPlainText -Force
+    $cred = New-Object System.Management.Automation.PSCredential('{{ item.guest_admin_user }}', $sec)
+    Invoke-Command -VMName '{{ item.name }}' -Credential $cred -ScriptBlock {
+      param($ip, $prefix, $gw, $dns)
+      $nic = Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object -First 1
+      # 既存IPv4設定を除去してから付与（冪等な再設定）
+      Get-NetIPAddress -InterfaceIndex $nic.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
+      Remove-NetRoute -InterfaceIndex $nic.ifIndex -DestinationPrefix '0.0.0.0/0' -Confirm:$false -ErrorAction SilentlyContinue
+      New-NetIPAddress -InterfaceIndex $nic.ifIndex -IPAddress $ip -PrefixLength $prefix -DefaultGateway $gw | Out-Null
+      Set-DnsClientServerAddress -InterfaceIndex $nic.ifIndex -ServerAddresses $dns
+    } -ArgumentList '{{ item.guest_ip_address }}', {{ item.guest_subnet_prefix }}, '{{ item.guest_default_gateway }}', @({{ item.guest_dns_servers | map('regex_replace', '^(.*)$', "'\\1'") | join(',') }})
+    'CHANGED'
+  when:
+    - item.os_type == 'windows'
+    - (ip_before.results[idx].stdout | trim) != item.guest_ip_address
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+  register: ip_set
+  no_log: true
+  changed_when: "'CHANGED' in stdout"
+
+- name: ゲスト内の設定後IPアドレスを取得する（after・Windowsのみ）
+  ansible.windows.win_shell: |
+    $sec = ConvertTo-SecureString '{{ item.guest_admin_password }}' -AsPlainText -Force
+    $cred = New-Object System.Management.Automation.PSCredential('{{ item.guest_admin_user }}', $sec)
+    Invoke-Command -VMName '{{ item.name }}' -Credential $cred -ScriptBlock {
+      Get-NetIPAddress -AddressFamily IPv4 |
+        Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } |
+        Select-Object -First 1 -ExpandProperty IPAddress
+    }
+  when: item.os_type == 'windows'
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+  register: ip_after
+  no_log: true
+  changed_when: false
+
+- name: 静的IPが要求値に一致することを検証する（Windowsのみ）
+  ansible.builtin.assert:
+    that:
+      - (ip_after.results[idx].stdout | trim) == item.guest_ip_address
+    fail_msg: "静的IP設定に失敗しました: {{ item.name }}"
+    success_msg: "IP={{ item.guest_ip_address }}: {{ item.name }}"
+    quiet: true
+  when: item.os_type == 'windows'
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+
+- name: 静的IP設定の前後差分をエビデンス出力する（Windowsのみ・パスワードは含めない）
+  ansible.builtin.debug:
+    msg:
+      - "vm     : {{ item.name }}"
+      - "before : {{ ip_before.results[idx].stdout | trim }}"
+      - "after  : {{ ip_after.results[idx].stdout | trim }}"
+  when: item.os_type == 'windows'
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx

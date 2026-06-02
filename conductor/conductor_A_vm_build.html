@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Conductor A「仮想マシン構築」フロー (pkg: vm_build)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "Segoe UI", "Hiragino Sans", sans-serif; margin: 24px; }
+  h1 { font-size: 18px; }
+  .note { color: #555; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Conductor A「仮想マシン構築」フロー（ロールパッケージ: vm_build）</h1>
+<p class="note">実行対象: Hyper-Vホスト（WinRM） / 各Movementは loop: VAR_vm で全VMを処理 / 失敗時: 即時中断 / HW設定: 逐次</p>
+<pre class="mermaid">
+flowchart TD
+  S((開始)) --> A1["import_template_vm&lt;br/&gt;pkg: vm_build / 対象: 全VM&lt;br/&gt;Op: Hyper-V_VM構築_初回"]
+  A1 --> A2["set_vm_cpu&lt;br/&gt;pkg: vm_build / 対象: 全VM"]
+  A2 --> A3["set_vm_memory&lt;br/&gt;pkg: vm_build / 対象: 全VM"]
+  A3 --> A4["configure_vm_network&lt;br/&gt;pkg: vm_build / 対象: 全VM"]
+  A4 --> A5["configure_vm_firmware&lt;br/&gt;pkg: vm_build / 対象: 全VM"]
+  A5 --> A6["enable_time_sync&lt;br/&gt;pkg: vm_build / 対象: 全VM"]
+  A6 --> A7["start_vm&lt;br/&gt;pkg: vm_build / 対象: 全VM"]
+  A7 --> E((終了))
+  classDef mv fill:#e6f2ff,stroke:#3b82f6,stroke-width:1px;
+  class A1,A2,A3,A4,A5,A6,A7 mv;
+</pre>
+<script>mermaid.initialize({ startOnLoad: true });</script>
+</body>
+</html>

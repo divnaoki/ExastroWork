@@ -1,0 +1,3 @@
+---
+- name: ファームウェア（セキュアブート）設定タスクを読み込む
+  ansible.builtin.include_tasks: configure_vm_firmware.yml

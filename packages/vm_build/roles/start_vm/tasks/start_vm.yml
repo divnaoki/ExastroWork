@@ -1,0 +1,59 @@
+---
+# 種別: サービス制御（VM起動）
+# 対象: Hyper-Vホスト（WinRM）。全VMを起動し Running を待機する。
+# 冪等性: 現在のStateを取得し、Running でない場合のみ Start-VM。起動後はuntilでRunningを待機。
+# 変数: VAR_vm（全VM対象）。
+
+- name: 現在のVM状態を取得する（before）
+  ansible.windows.win_shell: "(Get-VM -Name '{{ item.name }}').State"
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: state_before
+  changed_when: false
+
+- name: VMを起動する（Running でない場合のみ）
+  ansible.windows.win_shell: |
+    $ErrorActionPreference = 'Stop'
+    Start-VM -Name '{{ item.name }}'
+    'CHANGED'
+  when: (state_before.results[idx].stdout | trim) != 'Running'
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+  changed_when: "'CHANGED' in stdout"
+
+- name: VMが Running になるまで待機する
+  ansible.windows.win_shell: "(Get-VM -Name '{{ item.name }}').State"
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: state_wait
+  until: (state_wait.stdout | trim) == 'Running'
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: 起動後のVM状態を検証する
+  ansible.builtin.assert:
+    that:
+      - (state_wait.results[idx].stdout | trim) == 'Running'
+    fail_msg: "VMの起動に失敗しました: {{ item.name }}"
+    success_msg: "VM=Running: {{ item.name }}"
+    quiet: true
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+
+- name: VM起動の前後差分をエビデンス出力する
+  ansible.builtin.debug:
+    msg:
+      - "vm     : {{ item.name }}"
+      - "before : {{ state_before.results[idx].stdout | trim }}"
+      - "after  : {{ state_wait.results[idx].stdout | trim }}"
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx

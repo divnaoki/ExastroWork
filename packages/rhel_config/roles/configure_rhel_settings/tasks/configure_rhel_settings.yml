@@ -1,0 +1,41 @@
+---
+# 種別: OS設定（RHELゲスト）— スケルトン
+# 対象: RHELゲストVM（SSH接続 / become 想定）。Hyper-Vホスト経由ではない。
+# 状況: RHEL固有のOS設定値は未確定（IP=kickstart済 / 時刻同期=vm_buildで実施済）。
+#       設定内容が確定したら、下記の「事前→変更→事後→検証→エビデンス」枠に冪等タスクを実装する。
+# 規約: 冪等モジュールを第一選択。command/shell は creates/when/changed_when で冪等化。
+#       参照系は changed_when: false。機密は no_log: true。全タスクに name。
+
+# --- 0. プレースホルダ（設定値確定までの仮タスク） ---
+- name: RHEL設定変更は未確定のためスキップする旨を通知する
+  ansible.builtin.debug:
+    msg: "configure_rhel_settings: RHEL固有の設定値が未確定のため未実装。確定後にタスクを追加してください。"
+
+# --- 1. 事前取得(before)（実装例・コメント） ---
+# - name: 現在のホスト名を取得する（before）
+#   ansible.builtin.command: hostnamectl --static
+#   register: hostname_before
+#   changed_when: false
+
+# --- 2. 変更（冪等モジュールを第一選択） ---
+# - name: ホスト名を設定する
+#   ansible.builtin.hostname:
+#     name: "{{ VAR_rhel_hostname }}"
+#   when: VAR_rhel_hostname | length > 0
+#
+# - name: タイムゾーンを設定する
+#   community.general.timezone:
+#     name: "{{ VAR_rhel_timezone }}"
+
+# --- 3. 事後取得(after)（実装例・コメント） ---
+# - name: 設定後のホスト名を取得する（after）
+#   ansible.builtin.command: hostnamectl --static
+#   register: hostname_after
+#   changed_when: false
+
+# --- 4. 検証・エビデンス（実装例・コメント） ---
+# - name: 設定の前後差分をエビデンス出力する
+#   ansible.builtin.debug:
+#     msg:
+#       - "before: {{ hostname_before.stdout }}"
+#       - "after : {{ hostname_after.stdout }}"

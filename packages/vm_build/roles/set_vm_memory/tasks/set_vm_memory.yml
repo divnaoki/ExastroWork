@@ -1,0 +1,70 @@
+---
+# 種別: ハードウェア構成（メモリ：起動メモリ／動的メモリ）
+# 対象: Hyper-Vホスト（WinRM）。VMは停止中に設定。
+# 冪等性: 現在の StartupBytes / DynamicMemoryEnabled を取得し、要求値と異なる場合のみ Set-VMMemory。
+# 変数: VAR_vm。item.memory_startup_mb / memory_dynamic / memory_min_mb / memory_max_mb。
+
+- name: 現在のメモリ設定を取得する（before）
+  ansible.windows.win_shell: |
+    $m = Get-VMMemory -VMName '{{ item.name }}'
+    "{0};{1}" -f ($m.Startup/1MB), $m.DynamicMemoryEnabled
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: mem_before
+  changed_when: false
+
+- name: メモリを設定する（起動メモリ・動的メモリ）
+  ansible.windows.win_shell: |
+    $ErrorActionPreference = 'Stop'
+    {% if item.memory_dynamic | bool %}
+    Set-VMMemory -VMName '{{ item.name }}' -DynamicMemoryEnabled $true `
+      -StartupBytes ({{ item.memory_startup_mb }}MB) `
+      -MinimumBytes ({{ item.memory_min_mb }}MB) `
+      -MaximumBytes ({{ item.memory_max_mb }}MB)
+    {% else %}
+    Set-VMMemory -VMName '{{ item.name }}' -DynamicMemoryEnabled $false `
+      -StartupBytes ({{ item.memory_startup_mb }}MB)
+    {% endif %}
+    'CHANGED'
+  when: >-
+    ((mem_before.results[idx].stdout | trim).split(';')[0] | int) != (item.memory_startup_mb | int)
+    or ((mem_before.results[idx].stdout | trim).split(';')[1] | lower) != (item.memory_dynamic | string | lower)
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+  changed_when: "'CHANGED' in stdout"
+
+- name: 設定後のメモリ設定を取得する（after）
+  ansible.windows.win_shell: |
+    $m = Get-VMMemory -VMName '{{ item.name }}'
+    "{0};{1}" -f ($m.Startup/1MB), $m.DynamicMemoryEnabled
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: mem_after
+  changed_when: false
+
+- name: 起動メモリが要求値に一致することを検証する
+  ansible.builtin.assert:
+    that:
+      - ((mem_after.results[idx].stdout | trim).split(';')[0] | int) == (item.memory_startup_mb | int)
+    fail_msg: "メモリ設定に失敗しました: {{ item.name }}"
+    success_msg: "起動メモリ={{ item.memory_startup_mb }}MB: {{ item.name }}"
+    quiet: true
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+
+- name: メモリ設定の前後差分をエビデンス出力する
+  ansible.builtin.debug:
+    msg:
+      - "vm     : {{ item.name }}"
+      - "before : {{ mem_before.results[idx].stdout | trim }}"
+      - "after  : {{ mem_after.results[idx].stdout | trim }}"
+  loop: "{{ VAR_vm }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx

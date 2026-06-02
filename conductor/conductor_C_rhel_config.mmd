@@ -1,0 +1,6 @@
+flowchart TD
+  S((開始)) --> C1["configure_rhel_settings<br/>pkg: rhel_config<br/>対象: RHELゲスト (SSH接続)<br/>Op: RHEL設定_初回 ※設定値確定後に実装"]
+  C1 --> E((終了))
+
+  classDef mv fill:#fff0e6,stroke:#f97316,stroke-width:1px,stroke-dasharray:4 3;
+  class C1 mv;

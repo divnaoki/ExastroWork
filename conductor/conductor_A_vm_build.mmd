@@ -1,0 +1,12 @@
+flowchart TD
+  S((開始)) --> A1["import_template_vm<br/>pkg: vm_build / 対象: 全VM<br/>Op: Hyper-V_VM構築_初回"]
+  A1 --> A2["set_vm_cpu<br/>pkg: vm_build / 対象: 全VM"]
+  A2 --> A3["set_vm_memory<br/>pkg: vm_build / 対象: 全VM"]
+  A3 --> A4["configure_vm_network<br/>pkg: vm_build / 対象: 全VM"]
+  A4 --> A5["configure_vm_firmware<br/>pkg: vm_build / 対象: 全VM"]
+  A5 --> A6["enable_time_sync<br/>pkg: vm_build / 対象: 全VM"]
+  A6 --> A7["start_vm<br/>pkg: vm_build / 対象: 全VM"]
+  A7 --> E((終了))
+
+  classDef mv fill:#e6f2ff,stroke:#3b82f6,stroke-width:1px;
+  class A1,A2,A3,A4,A5,A6,A7 mv;

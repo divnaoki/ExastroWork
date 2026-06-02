@@ -1,0 +1,14 @@
+---
+# configure_rhel_settings ロール 既定値（RHEL設定変更パッケージ）
+# 【重要・前提】
+#   - 実行対象は「RHELゲストVM」そのもの（SSH接続 / WinRM:False）。Hyper-Vホスト経由ではない。
+#     RHELはkickstartで静的IP割当済みのため、Ansibleから直接SSHで到達できる。
+#   - 現時点でRHEL固有のOS設定値は未確定（静的IPはkickstart済み、時刻同期はvm_buildで実施済み）。
+#     本ロールは将来のRHEL設定値（hostname/タイムゾーン/パッケージ/サービス等）を実装するための
+#     スケルトン。設定内容が確定したら configure_rhel_settings.yml に冪等タスクを追加する。
+#
+# 変数命名: Exastro由来の外部変数のみ VAR_ 接頭辞＋小文字スネーク。
+# 例（設定値確定後に使用するイメージ）:
+#   VAR_rhel_hostname: ""        # 設定するホスト名
+#   VAR_rhel_timezone: "Asia/Tokyo"
+VAR_rhel_settings_placeholder: true

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Conductor B「Windows設定変更」フロー (pkg: windows_config)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "Segoe UI", "Hiragino Sans", sans-serif; margin: 24px; }
+  h1 { font-size: 18px; }
+  .note { color: #555; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Conductor B「Windows設定変更」フロー（ロールパッケージ: windows_config）</h1>
+<p class="note">実行対象: Hyper-Vホスト（WinRM） / PowerShell Direct でゲスト設定 / Windowsのみ</p>
+<pre class="mermaid">
+flowchart TD
+  S((開始)) --> B1["configure_windows_ip&lt;br/&gt;pkg: windows_config&lt;br/&gt;対象: Windowsのみ (when os_type == windows)&lt;br/&gt;Op: Hyper-V_Windows設定_初回"]
+  B1 --> E((終了))
+  classDef mv fill:#e6ffe6,stroke:#22c55e,stroke-width:1px;
+  class B1 mv;
+</pre>
+<script>mermaid.initialize({ startOnLoad: true });</script>
+</body>
+</html>

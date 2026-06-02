@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Conductor C「RHEL設定変更」フロー (pkg: rhel_config)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "Segoe UI", "Hiragino Sans", sans-serif; margin: 24px; }
+  h1 { font-size: 18px; }
+  .note { color: #555; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Conductor C「RHEL設定変更」フロー（ロールパッケージ: rhel_config）</h1>
+<p class="note">実行対象: RHELゲストVM（SSH接続 / WinRM:False） ※設定値未確定のためスケルトン</p>
+<pre class="mermaid">
+flowchart TD
+  S((開始)) --> C1["configure_rhel_settings&lt;br/&gt;pkg: rhel_config&lt;br/&gt;対象: RHELゲスト (SSH接続)&lt;br/&gt;Op: RHEL設定_初回 ※設定値確定後に実装"]
+  C1 --> E((終了))
+  classDef mv fill:#fff0e6,stroke:#f97316,stroke-width:1px,stroke-dasharray:4 3;
+  class C1 mv;
+</pre>
+<script>mermaid.initialize({ startOnLoad: true });</script>
+</body>
+</html>

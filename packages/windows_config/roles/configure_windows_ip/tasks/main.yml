@@ -1,0 +1,3 @@
+---
+- name: Windows静的IP設定タスク（PowerShell Direct）を読み込む
+  ansible.builtin.include_tasks: configure_windows_ip.yml

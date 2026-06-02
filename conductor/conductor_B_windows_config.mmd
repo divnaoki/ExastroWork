@@ -1,0 +1,6 @@
+flowchart TD
+  S((開始)) --> B1["configure_windows_ip<br/>pkg: windows_config<br/>対象: Windowsのみ (when os_type == windows)<br/>Op: Hyper-V_Windows設定_初回"]
+  B1 --> E((終了))
+
+  classDef mv fill:#e6ffe6,stroke:#22c55e,stroke-width:1px;
+  class B1 mv;
